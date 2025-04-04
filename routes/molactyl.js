@@ -287,7 +287,7 @@ router.get("/transfercoins", async (req, res) => {
       
       const newResources = {
           ram: newRam,
-          disk: 0, // Assuming 10 GiB disk is always allocated
+          disk: newdisk, // Assuming 10 GiB disk is always allocated
           cores: newCpu,
       };
       
@@ -416,6 +416,54 @@ router.get('/store', isAuthenticated ,async (req, res) => {
     name: await db.get('name') || 'OverSee',
     logo: await db.get('logo') || false
   });
+});
+
+router.get('/instance/:id/stats', isAuthenticated, async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const instance = await db.get(`${id}_instance`);
+        if (!instance) {
+            return res.status(404).json({ error: 'Instance not found' });
+        }
+
+        const node = instance.Node;
+        const containerId = instance.ContainerId;
+
+        // Fetch stats from Docker API
+        const response = await axios.get(`http://${node.address}:${node.port}/containers/${containerId}/stats?stream=false`, {
+            auth: {
+                username: 'Skyport',
+                password: node.apiKey,
+            },
+        });
+
+        const stats = response.data;
+
+        // Calculate CPU usage
+        const cpuDelta = stats.cpu_stats.cpu_usage.total_usage - stats.precpu_stats.cpu_usage.total_usage;
+        const systemCpuDelta = stats.cpu_stats.system_cpu_usage - stats.precpu_stats.system_cpu_usage;
+        const cpuUsage = (cpuDelta / systemCpuDelta) * stats.cpu_stats.online_cpus * 100;
+
+        // Calculate Memory usage
+        const memoryUsage = stats.memory_stats.usage;
+        const memoryLimit = stats.memory_stats.limit;
+        const memoryUsagePercent = (memoryUsage / memoryLimit) * 100;
+
+        // Disk usage (if available)
+        const diskUsage = stats.storage_stats ? stats.storage_stats.size : 0;
+
+        res.json({
+            cpuUsage: cpuUsage.toFixed(2),
+            memoryUsage: (memoryUsage / 1024 / 1024).toFixed(2), // Convert to MB
+            memoryLimit: (memoryLimit / 1024 / 1024).toFixed(2), // Convert to MB
+            memoryUsagePercent: memoryUsagePercent.toFixed(2),
+            diskUsage: (diskUsage / 1024 / 1024).toFixed(2), // Convert to MB
+        });
+    } catch (error) {
+        console.error(`Error fetching stats for instance ${id}:`, error);
+        res.status(500).json({ error: 'Failed to fetch instance stats' });
+    }
 });
 
 async function prepareRequestData(image, memory, cpu, ports, name, node, Id, variables, imagename) {
