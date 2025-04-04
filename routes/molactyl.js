@@ -257,23 +257,27 @@ router.get("/transfercoins", async (req, res) => {
   });
 
   router.get('/create', isAuthenticated, async (req, res) => {
-    const { image, imageName, ram, cpu, ports, nodeId, name, user, primary, variables } =
+    const { image, imageName, ram, cpu, ports, nodeId, name, user, primary, variables, disk } =
       req.query;
   
     // Check for missing parameters
-    if (!imageName || !ram || !cpu || !ports || !nodeId || !name || !user || !primary) {
+    if (!imageName || !ram || !cpu || !ports || !nodeId || !name || !user || !primary || !disk) {
       return res.status(400).json({ error: 'Missing parameters' });
     }
   
     try {
-      // Parse the RAM value from the query (in MIB)
-      const requestedRam = parseInt(ram, 10);  // Ensure the RAM value is parsed as an integer (in MIB)
-      const requestedCore = req.query.cpu;
-      // Fetch user resources from the database (should be in MIB as well)
+      // Parse the RAM, CPU, and Disk values from the query
+      const requestedRam = parseInt(ram, 10);  // RAM in MiB
+      const requestedCore = parseInt(cpu, 10); // CPU cores
+      const requestedDisk = parseInt(disk, 10); // Disk in GiB
+
+      // Fetch user resources from the database
       const user_resources = await db.get('resources-' + req.user.email);
       const availableRam = user_resources.ram;
       const availableCore = user_resources.cores;
-      // Compare the requested RAM with the available RAM
+      const availableDisk = user_resources.disk;
+
+      // Compare the requested resources with the available resources
       if (requestedRam > availableRam) {
         return res.redirect('../create-server?err=NOT_ENOUGH_RESOURCES');
       }
@@ -281,13 +285,19 @@ router.get("/transfercoins", async (req, res) => {
       if (requestedCore > availableCore) {
         return res.redirect('../create-server?err=NOT_ENOUGH_RESOURCES');
       }
+
+      if (requestedDisk > availableDisk) {
+        return res.redirect('../create-server?err=NOT_ENOUGH_RESOURCES');
+      }
   
-      const newRam = availableRam - requestedRam; // Deduct the requested RAM from available RAM
-      const newCpu = availableCore - requestedCore; // Deduct the requested cores from available cores
+      // Deduct the requested resources from available resources
+      const newRam = availableRam - requestedRam;
+      const newCpu = availableCore - requestedCore;
+      const newDisk = availableDisk - requestedDisk;
       
       const newResources = {
           ram: newRam,
-          disk: newdisk, // Assuming 10 GiB disk is always allocated
+          disk: newDisk,
           cores: newCpu,
       };
       
@@ -325,13 +335,13 @@ router.get("/transfercoins", async (req, res) => {
       );
   
       logAudit(req.user.userId, req.user.username, 'instance:create', req.ip);
-      await db.set('resources-'+ req.user.email, newResources)
+      await db.set('resources-'+ req.user.email, newResources);
       res.redirect('../dashboard?err=CREATED');
     } catch (error) {
       console.error('Error deploying instance:', error);
       res.redirect('../create-server?err=INTERNALERROR');
     }
-  });  
+  });
 
   router.get('/delete/:id', isAuthenticated, async (req, res) => {
     const { id } = req.params;
