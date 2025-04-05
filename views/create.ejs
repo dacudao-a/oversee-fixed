@@ -193,24 +193,25 @@
     return `${port1}:${port1}`;
     }
 
-        async function submitForm() {
-          const name = encodeURIComponent(document.getElementById("name").value);
-          const image = encodeURIComponent(document.getElementById("image").value);
-          const imageName = getSelectedImageName();
-          const memory = encodeURIComponent(document.getElementById("memory").value);
-          const cpu = encodeURIComponent(document.getElementById("cpu").value);
-          const nodeId = encodeURIComponent(document.getElementById("node").value);
-          const userId = "<%= user.userId %>";
-          const ports = getRandomPorts();
-          const primary_port = ports.split(":")[1];
-          const variables = Array.from(document.querySelectorAll('#variablesContainer input'))
+    async function submitForm() {
+        const name = encodeURIComponent(document.getElementById("name").value);
+        const image = encodeURIComponent(document.getElementById("image").value);
+        const imageName = getSelectedImageName();
+        const memory = encodeURIComponent(document.getElementById("memory").value);
+        const cpu = encodeURIComponent(document.getElementById("cpu").value);
+        const disk = encodeURIComponent(document.getElementById("disk").value); // Added disk parameter
+        const nodeId = encodeURIComponent(document.getElementById("node").value);
+        const userId = "<%= user.userId %>";
+        const ports = getRandomPorts();
+        const primary_port = ports.split(":")[1];
+        const variables = Array.from(document.querySelectorAll('#variablesContainer input'))
             .reduce((acc, input) => ({ ...acc, [input.id]: input.value }), {});
-          
-          const variablesJSON = encodeURIComponent(JSON.stringify(variables));
-      
-          document.location.href = `/create?name=${name}&image=${image}&imageName=${imageName}&ram=${memory}&cpu=${cpu}&nodeId=${nodeId}&variables=${variablesJSON}&user=${userId}&ports=${ports}&primary=${primary_port}`;
-        }
-      </script>
+        
+        const variablesJSON = encodeURIComponent(JSON.stringify(variables));
+
+        document.location.href = `/create?name=${name}&image=${image}&imageName=${imageName}&ram=${memory}&cpu=${cpu}&disk=${disk}&nodeId=${nodeId}&variables=${variablesJSON}&user=${userId}&ports=${ports}&primary_port=${primary_port}`;
+    }
+</script>
       
                                                   
                           
